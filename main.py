@@ -128,20 +128,29 @@ class TopMisesView(discord.ui.View):
         self.page = 0
         self.entries_per_page = 10
         total_entries = len(entries)
+        # Calcule la dernière page possible (max_page est l'index de la dernière page)
         self.max_page = (total_entries - 1) // self.entries_per_page if total_entries > 0 else 0
         self.update_buttons()
 
     def update_buttons(self):
+        """Désactive les boutons quand on atteint les limites du classement."""
         if self.max_page > 0:
-            self.children[0].disabled = self.page == 0      
-            self.children[1].disabled = self.page == 0      
-            self.children[2].disabled = self.page == self.max_page
-            self.children[3].disabled = self.page == self.max_page
+            # Boutons 'Début' (0) et 'Précédent' (1)
+            is_first_page = self.page == 0
+            self.children[0].disabled = is_first_page
+            self.children[1].disabled = is_first_page
+            
+            # Boutons 'Suivant' (2) et 'Fin' (3)
+            is_last_page = self.page == self.max_page
+            self.children[2].disabled = is_last_page
+            self.children[3].disabled = is_last_page
         else:
+            # Si une seule page ou aucun joueur, tout désactiver
             for button in self.children:
                 button.disabled = True
 
     def get_embed(self):
+        """Génère l'Embed pour la page actuelle."""
         start = self.page * self.entries_per_page
         end = start + self.entries_per_page
         slice_entries = self.entries[start:end]
@@ -159,10 +168,10 @@ class TopMisesView(discord.ui.View):
 
         rank_messages = []
         for i, (user_id, total_mises) in enumerate(slice_entries):
-            rank = start + i + 1  # Calcule le rang global (1, 2, 3...)
+            rank = start + i + 1
+            # Formatage des nombres avec espaces insécables (ex: 1 234 567)
             formatted_mises = f"{total_mises:,}".replace(",", "\u202F") 
 
-            # Ligne modifiée : Affiche le rang #X, la mention et le montant
             rank_messages.append(
                 f"**#{rank}** <@{user_id}> : **{formatted_mises}** Kamas"
             )
@@ -171,37 +180,46 @@ class TopMisesView(discord.ui.View):
         embed.set_footer(text=f"Page {self.page + 1}/{self.max_page + 1} | Total de {len(self.entries)} joueurs classés.")
         return embed
 
-    async def _update_page(self, interaction: discord.Interaction):
+    async def _update_and_respond(self, interaction: discord.Interaction):
+        """Met à jour l'état de la vue et répond à l'interaction."""
         self.update_buttons()
         await interaction.response.edit_message(embed=self.get_embed(), view=self)
 
+    # --- Boutons de Navigation ---
+
     @discord.ui.button(label="⏮️ Début", style=discord.ButtonStyle.secondary)
     async def first_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
         if self.page != 0:
             self.page = 0
-            await self._update_page(interaction)
+            await self._update_and_respond(interaction)
+        else:
+            # Répondre silencieusement si aucune action n'est nécessaire
+            await interaction.response.defer()
 
     @discord.ui.button(label="◀️ Précédent", style=discord.ButtonStyle.secondary)
     async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
         if self.page > 0:
             self.page -= 1
-            await self._update_page(interaction)
+            await self._update_and_respond(interaction)
+        else:
+            await interaction.response.defer()
 
     @discord.ui.button(label="Suivant ▶️", style=discord.ButtonStyle.secondary)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
         if self.page < self.max_page:
             self.page += 1
-            await self._update_page(interaction)
+            await self._update_and_respond(interaction)
+        else:
+            await interaction.response.defer()
 
     @discord.ui.button(label="Fin ⏭️", style=discord.ButtonStyle.secondary)
     async def last_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
         if self.page != self.max_page:
             self.page = self.max_page
-            await self._update_page(interaction)
+            await self._update_and_respond(interaction)
+        else:
+            await interaction.response.defer()
+
 
 # --- FONCTION COMMUNE DE LOGIQUE DU LEADERBOARD ASYNCHRONE (Inchangée) ---
 
