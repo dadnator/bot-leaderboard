@@ -123,7 +123,7 @@ def get_leaderboard_data():
 
 class TopMisesView(discord.ui.View):
     def __init__(self, entries):
-        super().__init__(timeout=120)
+        super().__init__(timeout=None)
         self.entries = entries
         self.page = 0
         self.entries_per_page = 10
