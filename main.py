@@ -262,7 +262,7 @@ async def leaderboardcroup_error(interaction: discord.Interaction, error: app_co
 
 
 @bot.tree.command(name="recalc", description="⚠️ Recalcule le leaderboard à partir de l'historique du salon de log. (Croupiers uniquement)")
-@is_allowed_user(ID_HUMAINS_AUTORISES)
+@app_commands.checks.has_role(ID_ROLE_CROUPIER)
 async def recalculate_leaderboard(interaction: discord.Interaction):
     
     # 1. Vérification initiale et Début de la 'pensée'
