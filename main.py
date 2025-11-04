@@ -299,9 +299,9 @@ async def recalculate_leaderboard(interaction: discord.Interaction):
         # Si ce n'est pas un bot de jeu ou un humain autorisé, on ignore.
         is_game_bot = message.author.id in ID_BOTS_DE_JEU
         # Si vous avez implémenté ID_HUMAINS_AUTORISES, décommentez ceci :
-        # is_allowed_human = message.author.id in ID_HUMAINS_AUTORISES 
-        # if not is_game_bot and not is_allowed_human:
-        if not is_game_bot: # Si vous n'avez pas implémenté ID_HUMAINS_AUTORISES
+        is_allowed_human = message.author.id in ID_HUMAINS_AUTORISES 
+        if not is_game_bot and not is_allowed_human:
+        # if not is_game_bot: # Si vous n'avez pas implémenté ID_HUMAINS_AUTORISES
              continue
         
         match = LOG_REGEX.search(message.content)
