@@ -261,6 +261,86 @@ async def leaderboardcroup_error(interaction: discord.Interaction, error: app_co
         await interaction.response.send_message("Une erreur inconnue s'est produite.", ephemeral=True)
 
 
+@bot.tree.command(name="recalc", description="⚠️ Recalcule le leaderboard à partir de l'historique du salon de log. (Croupiers uniquement)")
+@is_allowed_user(ID_HUMAINS_AUTORISES)
+async def recalculate_leaderboard(interaction: discord.Interaction):
+    
+    # 1. Vérification initiale et Début de la 'pensée'
+    await interaction.response.defer(ephemeral=False, thinking=True)
+    
+    log_channel = bot.get_channel(ID_SALON_LOG_COMMISSION)
+    
+    if log_channel is None:
+        await interaction.followup.send("❌ Erreur: Le salon de log (ID_SALON_LOG_COMMISSION) est introuvable.", ephemeral=True)
+        return
+
+    # 2. Réinitialiser la DB avant le recalcul
+    await interaction.followup.send("🧹 Initialisation : Suppression des anciennes données du leaderboard...", ephemeral=False)
+    await bot.loop.run_in_executor(None, reset_leaderboard)
+    
+    # 3. Traiter les messages historiques
+    messages_processed = 0
+    messages_logged = 0
+    
+    # Utilisation de 'history' pour récupérer les messages du salon
+    async for message in log_channel.history(limit=None, oldest_first=True):
+        messages_processed += 1
+        
+        # --- LOGIQUE D'ANALYSE (Copie de on_message) ---
+        
+        # Si ce n'est pas un bot de jeu ou un humain autorisé, on ignore.
+        is_game_bot = message.author.id in ID_BOTS_DE_JEU
+        # Si vous avez implémenté ID_HUMAINS_AUTORISES, décommentez ceci :
+        # is_allowed_human = message.author.id in ID_HUMAINS_AUTORISES 
+        # if not is_game_bot and not is_allowed_human:
+        if not is_game_bot: # Si vous n'avez pas implémenté ID_HUMAINS_AUTORISES
+             continue
+        
+        match = LOG_REGEX.search(message.content)
+
+        if match:
+            # Assurez-vous d'utiliser la bonne numérotation de groupe si vous avez modifié LOG_REGEX !
+            player1_id = extract_id(match.group(1))
+            player2_mention = match.group(2)
+            player2_id = extract_id(player2_mention) if player2_mention else None
+            mise_text = match.group(3)
+            
+            try:
+                cleaned_mise_text = mise_text.replace(' ', '').replace('\u00A0', '').replace('\u202F', '')
+                mise_amount = int(cleaned_mise_text)
+            except ValueError:
+                print(f"❌ Erreur de mise lors du recalcul: {mise_text!r} dans le message de {message.author}")
+                continue # Passe au message suivant
+
+            if player1_id and player2_id and mise_amount > 0:
+                 # Seuls les DUELS sont logués ici (Joueur 1 et Joueur 2 doivent exister)
+                 await bot.loop.run_in_executor(
+                    None, 
+                    process_duel_mises, 
+                    player1_id, 
+                    player2_id, 
+                    mise_amount
+                 )
+                 messages_logged += 1
+
+    # 4. Envoi du résultat final
+    final_message = (
+        f"✅ **Recalcul terminé !**\n"
+        f"Messages analysés : `{messages_processed}`\n"
+        f"Mises de duel enregistrées : `{messages_logged}`"
+    )
+    await interaction.followup.send(final_message)
+
+
+@recalculate_leaderboard.error
+async def recalc_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingRole):
+        await interaction.response.send_message("❌ Vous n'êtes pas autorisé à utiliser cette commande de maintenance. Elle est réservée aux Croupiers.", ephemeral=True)
+    else:
+        print(f"Erreur dans /recalc: {error}")
+        await interaction.response.send_message("Une erreur inconnue s'est produite lors du recalcul.", ephemeral=True)
+
+
 # --- ÉVÉNEMENTS DU BOT (CORRIGÉ) ---
 
 @bot.event
