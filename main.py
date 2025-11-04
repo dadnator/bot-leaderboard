@@ -118,6 +118,14 @@ def get_leaderboard_data():
     conn.close()
     return all_players
 
+def reset_leaderboard():
+    """Supprime toutes les données de mises cumulées."""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # Cette commande supprime toutes les lignes de la table 'total_mises'
+    c.execute("DELETE FROM total_mises") 
+    conn.commit()
+    conn.close()
 
 # --- CLASSE DE VUE POUR LA PAGINATION (Inchangée) ---
 
